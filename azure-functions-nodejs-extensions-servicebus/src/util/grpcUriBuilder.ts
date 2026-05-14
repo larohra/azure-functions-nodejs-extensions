@@ -1,8 +1,8 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT License.
 
-import { parseArgs } from 'node:util';
 import * as grpc from '@grpc/grpc-js';
+import minimist from 'minimist';
 
 /**
  *  GrpcUriBuilder is a utility class to build a gRPC URI from command line arguments.
@@ -33,21 +33,14 @@ export class GrpcUriBuilder {
         isLoopback: boolean;
         isSecure: boolean;
     } {
-        const { values: parsedArgs } = parseArgs({
-            args: process.argv.slice(2),
-            options: {
-                host: { type: 'string' },
-                port: { type: 'string' },
-                'functions-uri': { type: 'string' },
-                'functions-grpc-max-message-length': { type: 'string' },
-            },
-            strict: false,
+        const parsedArgs = minimist(process.argv.slice(2), {
+            string: ['host', 'port', 'functions-uri', 'functions-grpc-max-message-length'],
         });
 
-        const host = parsedArgs.host;
-        const port = parsedArgs.port;
-        const functionsUri = parsedArgs['functions-uri'];
-        const grpcMaxMessageLengthArg = parsedArgs['functions-grpc-max-message-length'];
+        const host = this.getStringArg(parsedArgs, 'host');
+        const port = this.getStringArg(parsedArgs, 'port');
+        const functionsUri = this.getStringArg(parsedArgs, 'functions-uri');
+        const grpcMaxMessageLengthArg = this.getStringArg(parsedArgs, 'functions-grpc-max-message-length');
 
         const missing: string[] = [];
         if (!functionsUri) {
@@ -71,6 +64,16 @@ export class GrpcUriBuilder {
         }
 
         return this.buildLegacyLoopbackConnection(String(host), String(port), grpcMaxMessageLength);
+    }
+
+    private static getStringArg(args: Record<string, unknown>, name: string): string | undefined {
+        const value = args[name];
+
+        if (Array.isArray(value)) {
+            return value.length ? String(value[value.length - 1]) : undefined;
+        }
+
+        return value === undefined ? undefined : String(value);
     }
 
     private static buildConnectionFromFunctionsUri(
